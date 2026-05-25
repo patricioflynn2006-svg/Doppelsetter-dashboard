@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ClientUserRole {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+model Client {
+  id            String               @id @default(cuid())
+  slug          String               @unique
+  name          String
+  timezone      String               @default("America/Argentina/Buenos_Aires")
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  users         ClientUser[]
+  apiKeys       ClientApiKey[]
+  dailyMetrics  ClientDailyMetric[]
+  contentAssets ContentAssetMetric[]
+  ingestionRuns IngestionRun[]
+}
+
+model ClientUser {
+  id          String         @id @default(cuid())
+  clientId    String
+  clerkUserId String
+  role        ClientUserRole @default(VIEWER)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  client      Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, clerkUserId])
+  @@index([clerkUserId])
+}
+
+model ClientApiKey {
+  id        String    @id @default(cuid())
+  clientId  String
+  label     String
+  hashedKey String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  lastUsedAt DateTime?
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, isActive])
+}
+
+model ClientDailyMetric {
+  id                 String   @id @default(cuid())
+  clientId           String
+  date               DateTime @db.Date
+  leadsNew           Int      @default(0)
+  leadsConversando   Int      @default(0)
+  leadsLinkEnviado   Int      @default(0)
+  leadsAgendado      Int      @default(0)
+  leadsFrio          Int      @default(0)
+  qualificationRate  Float?
+  messagesInbound    Int      @default(0)
+  messagesOutbound   Int      @default(0)
+  appointmentsBooked Int      @default(0)
+  appointmentsAttended Int    @default(0)
+  appointmentsClosed Int      @default(0)
+  contentViews       Int      @default(0)
+  contentEngagements Int      @default(0)
+  contentLeads       Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, date])
+  @@index([clientId, date])
+}
+
+model ContentAssetMetric {
+  id             String   @id @default(cuid())
+  clientId       String
+  assetId        String
+  platform       String
+  title          String
+  publishedAt    DateTime
+  views          Int      @default(0)
+  likes          Int      @default(0)
+  comments       Int      @default(0)
+  shares         Int      @default(0)
+  saves          Int      @default(0)
+  leadsGenerated Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, assetId])
+  @@index([clientId, publishedAt])
+}
+
+model IngestionRun {
+  id             String   @id @default(cuid())
+  clientId       String
+  idempotencyKey String
+  sourceWorkflow String?
+  sourceInstance String?
+  capturedAt     DateTime
+  payload        Json
+  createdAt      DateTime @default(now())
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, idempotencyKey])
+  @@index([clientId, capturedAt])
+}
